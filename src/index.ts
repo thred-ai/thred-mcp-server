@@ -287,7 +287,7 @@ async function startHttp() {
     return undefined;
   }
 
-  app.post("/mcp", async (req, res) => {
+  app.post("/v1", async (req, res) => {
     const sessionId = req.headers["mcp-session-id"] as string | undefined;
     let transport: StreamableHTTPServerTransport;
 
@@ -319,7 +319,7 @@ async function startHttp() {
     await transport.handleRequest(req, res, req.body);
   });
 
-  app.get("/mcp", async (req, res) => {
+  app.get("/v1", async (req, res) => {
     const sessionId = req.headers["mcp-session-id"] as string | undefined;
     if (!sessionId || !transports.has(sessionId)) {
       res.status(400).json({ error: "Invalid or missing session ID" });
@@ -329,7 +329,7 @@ async function startHttp() {
     await transport.handleRequest(req, res);
   });
 
-  app.delete("/mcp", async (req, res) => {
+  app.delete("/v1", async (req, res) => {
     const sessionId = req.headers["mcp-session-id"] as string | undefined;
     if (sessionId && transports.has(sessionId)) {
       const transport = transports.get(sessionId)!;
