@@ -43,6 +43,9 @@ function formatTranscript(conversation: ConversationMessage[]): string {
 function formatCustomerSummary(data: CustomerChatResponse): string {
   const lines: string[] = [];
 
+  if (data.name) lines.push(`**Name:** ${data.name}`);
+  if (data.email) lines.push(`**Email:** ${data.email}`);
+  if (data.company) lines.push(`**Company:** ${data.company}`);
   lines.push(`**Status:** ${data.status}`);
 
   if (data.progress !== undefined) {
@@ -242,8 +245,9 @@ function createServer(apiClient: ThredApiClient): McpServer {
           };
         }
 
-        const customerSections = data.results.map((customer, i) => {
-          const header = `### Customer ${i + 1}`;
+        const customerSections = data.results.map((customer) => {
+          const label = customer.name ?? customer.email ?? "Unknown";
+          const header = `### ${label}`;
           const summary = formatCustomerSummary(customer);
           const hasTranscript =
             customer.conversation && customer.conversation.length > 0;

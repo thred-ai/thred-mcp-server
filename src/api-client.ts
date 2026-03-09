@@ -20,7 +20,9 @@ export interface ChatInsights {
 
 export interface CustomerChatResponse {
   status: "pending" | "processing" | "completed" | "failed";
-  leadData?: Record<string, unknown>;
+  name?: string;
+  email?: string;
+  company?: string;
   enrichedData?: Record<string, unknown>;
   sources?: Array<Record<string, unknown>>;
   insights?: ChatInsights;
