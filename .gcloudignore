@@ -1,0 +1,17 @@
+.gcloudignore
+.git
+.gitignore
+
+node_modules/
+npm-debug.log
+.env
+.env.local
+dist/
+*.log
+.DS_Store
+coverage/
+.vscode/
+.cursor/
+.idea/
+*.swp
+*.swo

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "thred": {
+      "command": "node",
+      "args": ["/Users/artakoroushnia/Desktop/Thred/thred-mcp/dist/index.js"],
+      "env": {
+        "THRED_API_KEY": "thr_999f097b-6dc4-4d3f-8eb2-e4f97f623d97",
+        "THRED_BASE_URL": "http://localhost:8080"
+      }
+    }
+  }
+}
