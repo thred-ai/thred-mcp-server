@@ -31,6 +31,11 @@ export interface CustomerChatResponse {
   progress?: number;
 }
 
+export interface CompanyResponse {
+  company: string;
+  results: CustomerChatResponse[];
+}
+
 export class ThredApiClient {
   private baseUrl: string;
   private apiKey: string;
@@ -68,6 +73,12 @@ export class ThredApiClient {
   async getCustomerById(customerId: string): Promise<CustomerChatResponse> {
     return this.request<CustomerChatResponse>(
       `/customers/${encodeURIComponent(customerId)}`
+    );
+  }
+
+  async getCustomersByCompany(companyName: string): Promise<CompanyResponse> {
+    return this.request<CompanyResponse>(
+      `/customers/by-company?name=${encodeURIComponent(companyName)}`
     );
   }
 
