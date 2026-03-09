@@ -80,11 +80,15 @@ export class ThredApiClient {
 
   async getRecentCustomers(
     limit?: number,
-    platform?: string
+    platform?: string,
+    startDate?: number,
+    endDate?: number
   ): Promise<CustomerChatResponse[]> {
     const params = new URLSearchParams();
     if (limit !== undefined) params.set("limit", String(limit));
     if (platform) params.set("platform", platform);
+    if (startDate !== undefined) params.set("startDate", String(startDate));
+    if (endDate !== undefined) params.set("endDate", String(endDate));
     const qs = params.toString();
     return this.request<CustomerChatResponse[]>(
       `/customers/recent${qs ? `?${qs}` : ""}`

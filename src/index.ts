@@ -292,7 +292,7 @@ function createServer(apiClient: ThredApiClient): McpServer {
 
   server.tool(
     "get_recent_customers",
-    "Retrieve recent customer conversations, optionally filtered by AI platform (chatgpt, claude, gemini, pplx). Useful for understanding what customers from a specific platform are asking about.",
+    "Retrieve recent customer conversations, optionally filtered by AI platform and/or date range. Useful for questions like 'what are customers from claude asking today?' or 'show me conversations from last week'.",
     {
       platform: z
         .enum(["chatgpt", "claude", "gemini", "pplx"])
@@ -307,10 +307,27 @@ function createServer(apiClient: ThredApiClient): McpServer {
         .max(50)
         .optional()
         .describe("Number of customers to return (default 5, max 50)"),
+      startDate: z
+        .number()
+        .optional()
+        .describe(
+          "Filter customers created on or after this date (Unix timestamp in milliseconds)"
+        ),
+      endDate: z
+        .number()
+        .optional()
+        .describe(
+          "Filter customers created on or before this date (Unix timestamp in milliseconds)"
+        ),
     },
-    async ({ platform, limit }) => {
+    async ({ platform, limit, startDate, endDate }) => {
       try {
-        const results = await apiClient.getRecentCustomers(limit, platform);
+        const results = await apiClient.getRecentCustomers(
+          limit,
+          platform,
+          startDate,
+          endDate
+        );
 
         if (!results || results.length === 0) {
           const platformNote = platform ? ` from ${platform}` : "";
