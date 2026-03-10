@@ -9,13 +9,13 @@ export function registerGetRecentCustomers(
 ) {
   server.tool(
     "get_recent_customers",
-    "Retrieve recent customer conversations, optionally filtered by AI platform and/or date range. Useful for questions like 'what are customers from claude asking today?' or 'show me conversations from last week'.",
+    "Retrieve recent customer conversations, optionally filtered by AI platforms and/or date range. Useful for questions like 'what are customers from claude asking today?' or 'show me conversations from last week'.",
     {
-      platform: z
-        .enum(["chatgpt", "claude", "gemini", "pplx"])
+      platforms: z
+        .array(z.string())
         .optional()
         .describe(
-          "Filter by AI platform the customer came from (chatgpt, claude, gemini, pplx)"
+          "Filter by AI platform(s) the customer came from (e.g. chatgpt, claude, gemini, pplx). Only include if the user asks about specific platforms."
         ),
       limit: z
         .number()
@@ -37,22 +37,22 @@ export function registerGetRecentCustomers(
           "Filter customers created on or before this date (Unix timestamp in milliseconds)"
         ),
     },
-    async ({ platform, limit, startDate, endDate }) => {
+    async ({ platforms, limit, startDate, endDate }) => {
       try {
         const results = await apiClient.getRecentCustomers(
           limit,
-          platform,
+          platforms,
           startDate,
           endDate
         );
 
         if (!results || results.length === 0) {
-          const platformNote = platform ? ` from ${platform}` : "";
+          const platformsNote = platforms?.length ? ` from ${platforms.join(", ")}` : "";
           return {
             content: [
               {
                 type: "text" as const,
-                text: `No recent customers found${platformNote}.`,
+                text: `No recent customers found${platformsNote}.`,
               },
             ],
           };
@@ -70,12 +70,12 @@ export function registerGetRecentCustomers(
           return `${header}\n\n${summary}${transcript}`;
         });
 
-        const platformNote = platform ? ` (platform: ${platform})` : "";
+        const platformsNote = platforms?.length ? ` (platforms: ${platforms.join(", ")})` : "";
         return {
           content: [
             {
               type: "text" as const,
-              text: `## Recent Customers${platformNote}\n\n**Count:** ${results.length}\n\n---\n\n${customerSections.join("\n\n---\n\n")}`,
+              text: `## Recent Customers${platformsNote}\n\n**Count:** ${results.length}\n\n---\n\n${customerSections.join("\n\n---\n\n")}`,
             },
           ],
         };
