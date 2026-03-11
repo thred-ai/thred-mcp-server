@@ -1,0 +1,10 @@
+name = "thred-mcp"
+main = "src/index.ts"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+
+[vars]
+NODE_ENV = "production"
+
+# Secrets (set via `npx wrangler secret put <NAME>`):
+# - THRED_BASE_URL

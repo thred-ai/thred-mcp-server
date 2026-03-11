@@ -1,142 +1,120 @@
-#!/usr/bin/env node
-
-import { randomUUID } from "node:crypto";
+import { Hono } from "hono";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import express from "express";
+import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { ThredApiClient } from "./api-client.js";
 import { registerTools } from "./tools/index.js";
+import type { Bindings } from "./types/env.js";
 
-const BASE_URL = process.env.THRED_BASE_URL;
-const TRANSPORT = process.env.TRANSPORT ?? "stdio"; // "stdio" | "http"
+type Env = { Bindings: Bindings };
 
-// In stdio mode, the API key comes from the env var (single user).
-// In HTTP mode, each client sends their own key via Authorization header.
-const STATIC_API_KEY = process.env.THRED_API_KEY;
+const app = new Hono<Env>();
 
-if (TRANSPORT === "stdio" && !STATIC_API_KEY) {
-  console.error(
-    "THRED_API_KEY environment variable is required in stdio mode."
-  );
-  process.exit(1);
-}
-
-// --- Server factory ----------------------------------------------------
+const sessions = new Map<
+  string,
+  {
+    transport: WebStandardStreamableHTTPServerTransport;
+    server: McpServer;
+  }
+>();
 
 function createServer(apiClient: ThredApiClient): McpServer {
   const server = new McpServer({
     name: "thred-mcp",
     version: "1.0.0",
   });
-
   registerTools(server, apiClient);
-
   return server;
 }
 
-// --- Start -------------------------------------------------------------
-
-async function startStdio() {
-  const client = new ThredApiClient(STATIC_API_KEY!, BASE_URL);
-  const server = createServer(client);
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
+function extractApiKey(
+  authHeader: string | undefined,
+  url: string
+): string | undefined {
+  if (authHeader?.startsWith("Bearer ")) return authHeader.substring(7);
+  const parsed = new URL(url);
+  return parsed.searchParams.get("apiKey") ?? undefined;
 }
 
-async function startHttp() {
-  const app = express();
-  app.use(express.json());
+app.all("/v1", async (c) => {
+  const sessionId = c.req.header("mcp-session-id");
 
-  const sessions = new Map<
-    string,
-    { transport: StreamableHTTPServerTransport; server: McpServer }
-  >();
-
-  function extractApiKey(req: express.Request): string | undefined {
-    const auth = req.headers.authorization;
-    if (auth?.startsWith("Bearer ")) return auth.substring(7);
-    const queryKey = req.query["apiKey"] as string | undefined;
-    if (queryKey) return queryKey;
-    return undefined;
+  if (sessionId && sessions.has(sessionId)) {
+    return sessions.get(sessionId)!.transport.handleRequest(c.req.raw);
   }
 
-  app.post("/v1", async (req, res) => {
-    const sessionId = req.headers["mcp-session-id"] as string | undefined;
+  if (sessionId) {
+    return c.json(
+      {
+        jsonrpc: "2.0",
+        error: {
+          code: -32600,
+          message: "Session not found. Please reinitialize.",
+        },
+        id: null,
+      },
+      404
+    );
+  }
 
-    if (sessionId && sessions.has(sessionId)) {
-      const session = sessions.get(sessionId)!;
-      await session.transport.handleRequest(req, res, req.body);
-      return;
-    }
+  if (c.req.method !== "POST") {
+    return c.json({ error: "Method not allowed without session" }, 405);
+  }
 
-    const apiKey = extractApiKey(req);
-    if (!apiKey) {
-      res.status(401).json({
+  const apiKey = extractApiKey(
+    c.req.header("authorization"),
+    c.req.url
+  );
+  if (!apiKey) {
+    return c.json(
+      {
         error: "Authorization required",
         message: "Pass your Thred API key as: Authorization: Bearer <key>",
-      });
-      return;
-    }
-
-    const client = new ThredApiClient(apiKey, BASE_URL);
-    const server = createServer(client);
-
-    let capturedSessionId: string | undefined;
-    const transport = new StreamableHTTPServerTransport({
-      sessionIdGenerator: () => {
-        capturedSessionId = randomUUID();
-        return capturedSessionId;
       },
-    });
-
-    await server.connect(transport);
-    await transport.handleRequest(req, res, req.body);
-
-    if (capturedSessionId) {
-      sessions.set(capturedSessionId, { transport, server });
-    }
-  });
-
-  app.get("/v1", async (req, res) => {
-    const sessionId = req.headers["mcp-session-id"] as string | undefined;
-    if (!sessionId || !sessions.has(sessionId)) {
-      res.status(400).json({ error: "Invalid or missing session ID" });
-      return;
-    }
-    await sessions.get(sessionId)!.transport.handleRequest(req, res);
-  });
-
-  app.delete("/v1", async (req, res) => {
-    const sessionId = req.headers["mcp-session-id"] as string | undefined;
-    if (sessionId && sessions.has(sessionId)) {
-      const session = sessions.get(sessionId)!;
-      await session.transport.handleRequest(req, res);
-      sessions.delete(sessionId);
-    } else {
-      res.status(400).json({ error: "Invalid or missing session ID" });
-    }
-  });
-
-  app.get("/health", (_req, res) => {
-    res.json({ status: "ok", transport: "http" });
-  });
-
-  const port = parseInt(process.env.PORT ?? "3000", 10);
-  app.listen(port, () => {
-    console.log(`Thred MCP server (HTTP) listening on port ${port}`);
-  });
-}
-
-async function main() {
-  if (TRANSPORT === "http") {
-    await startHttp();
-  } else {
-    await startStdio();
+      401
+    );
   }
-}
 
-main().catch((error) => {
-  console.error("Fatal error starting MCP server:", error);
-  process.exit(1);
+  const client = new ThredApiClient(apiKey, c.env.THRED_BASE_URL);
+  const server = createServer(client);
+  const transport = new WebStandardStreamableHTTPServerTransport({
+    sessionIdGenerator: () => crypto.randomUUID(),
+    onsessioninitialized: (id) => {
+      sessions.set(id, { transport, server });
+    },
+    onsessionclosed: (id) => {
+      sessions.delete(id);
+    },
+    enableJsonResponse: true,
+  });
+
+  await server.connect(transport);
+  return transport.handleRequest(c.req.raw);
 });
+
+app.get("/health", (c) => {
+  return c.json({ status: "ok", transport: "http" });
+});
+
+app.get("/", (c) => {
+  return c.json({
+    service: "Thred MCP Server",
+    version: "1.0.0",
+    status: "running",
+    endpoints: {
+      health: "/health",
+      mcp: "POST /v1",
+    },
+  });
+});
+
+app.notFound((c) => {
+  return c.json(
+    {
+      error: "Not found",
+      message: `Route ${c.req.method} ${c.req.path} not found`,
+    },
+    404
+  );
+});
+
+export default app;

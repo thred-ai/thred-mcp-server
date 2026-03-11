@@ -14,71 +14,21 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Authenticate to Google Cloud
-        id: auth
-        uses: google-github-actions/auth@v2
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
+          node-version: '20'
 
-      - name: Set up Cloud SDK
-        uses: google-github-actions/setup-gcloud@v2
+      - name: Install dependencies
+        run: npm install
+
+      - name: Deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v3
         with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-
-      - name: Verify GCP Setup
-        run: |
-          echo "Verifying GCP authentication and configuration..."
-          gcloud config list
-          gcloud auth list
-          echo "Current project: $(gcloud config get-value project)"
-          
-      - name: Submit Cloud Build
-        id: build
-        run: |
-          echo "Starting Cloud Build submission..."
-          echo "Project: ${{ secrets.GCP_PROJECT_ID }}"
-          echo "Image Tag: ${{ github.sha }}"
-          
-          BUILD_ID=$(gcloud builds submit \
-            --config cloudbuild.yaml \
-            --project=${{ secrets.GCP_PROJECT_ID }} \
-            --substitutions=_IMAGE_TAG=${{ github.sha }} \
-            --async \
-            --format="value(id)")
-          
-          echo "build_id=$BUILD_ID" >> $GITHUB_OUTPUT
-          echo "Build submitted with ID: $BUILD_ID"
-          echo "Logs: https://console.cloud.google.com/cloud-build/builds/$BUILD_ID?project=${{ secrets.GCP_PROJECT_ID }}"
-      
-      - name: Wait for Cloud Build
-        run: |
-          BUILD_ID="${{ steps.build.outputs.build_id }}"
-          echo "Waiting for build $BUILD_ID to complete..."
-          
-          for i in {1..60}; do
-            STATUS=$(gcloud builds describe $BUILD_ID \
-              --project=${{ secrets.GCP_PROJECT_ID }} \
-              --format="value(status)")
-            
-            echo "Status: $STATUS (check $i/60)"
-            
-            if [ "$STATUS" = "SUCCESS" ]; then
-              echo "Build completed successfully!"
-              exit 0
-            elif [ "$STATUS" = "FAILURE" ] || [ "$STATUS" = "TIMEOUT" ] || [ "$STATUS" = "CANCELLED" ]; then
-              echo "Build failed with status: $STATUS"
-              echo "View logs: https://console.cloud.google.com/cloud-build/builds/$BUILD_ID?project=${{ secrets.GCP_PROJECT_ID }}"
-              exit 1
-            fi
-            
-            sleep 10
-          done
-          
-          echo "Build timed out after 10 minutes, but may still be running in GCP"
-          echo "Check status: https://console.cloud.google.com/cloud-build/builds/$BUILD_ID?project=${{ secrets.GCP_PROJECT_ID }}"
-          exit 1
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          command: deploy
 
       - name: Deployment Summary
         run: |
-          echo "Cloud Build completed"
-          echo "MCP server deployed to Cloud Run"
+          echo "Cloudflare Workers deployment completed"
+          echo "MCP server deployed to Cloudflare Workers"
