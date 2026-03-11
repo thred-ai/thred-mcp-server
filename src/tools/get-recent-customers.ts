@@ -23,7 +23,7 @@ export function registerGetRecentCustomers(
         .min(1)
         .max(50)
         .optional()
-        .describe("Number of customers to return (default 5, max 50)"),
+        .describe("Number of customers to return (default 3, max 50). If the user doesn't specify a number, use 3."),
       startDate: z
         .number()
         .optional()
