@@ -30,6 +30,7 @@ export interface CustomerChatResponse {
   summary?: string;
   conversation?: ConversationMessage[];
   progress?: number;
+  createdAt?: number;
   link?: string;
 }
 

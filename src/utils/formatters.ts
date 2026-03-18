@@ -61,3 +61,39 @@ export function formatCustomerSummary(data: CustomerChatResponse): string {
 
   return lines.join("\n");
 }
+
+export interface DayGroup {
+  date: number;
+  label: string;
+  conversations: CustomerChatResponse[];
+}
+
+/**
+ * Group conversations by calendar day, sorted newest-first.
+ * Mirrors the grouping logic used in the frontend NotesInterface.
+ */
+export function groupConversationsByDay(
+  conversations: CustomerChatResponse[]
+): DayGroup[] {
+  const groupMap = new Map<string, DayGroup>();
+
+  for (const conv of conversations) {
+    const ts = conv.createdAt ?? Date.now();
+    const d = new Date(ts);
+    const key = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+
+    if (!groupMap.has(key)) {
+      const date = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+      const label = new Intl.DateTimeFormat(undefined, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      }).format(d);
+      groupMap.set(key, { date, label, conversations: [] });
+    }
+
+    groupMap.get(key)!.conversations.push(conv);
+  }
+
+  return Array.from(groupMap.values()).sort((a, b) => b.date - a.date);
+}
