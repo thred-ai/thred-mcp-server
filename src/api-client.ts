@@ -3,6 +3,7 @@ const DEFAULT_BASE_URL = "http://localhost:8080";
 export interface ConversationMessage {
   role: "user" | "assistant";
   content: string;
+  createdAt?: number;
 }
 
 export interface ChatInsightItem {
