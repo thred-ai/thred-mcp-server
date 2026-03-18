@@ -3,10 +3,50 @@ import { ConversationMessage, CustomerChatResponse } from "../api-client.js";
 export function formatTranscript(conversation: ConversationMessage[]): string {
   if (conversation.length === 0) return "No conversation messages found.";
 
-  return conversation
-    .map((msg) => {
-      const label = msg.role === "user" ? "User" : "Assistant";
-      return `${label}:\n${msg.content}`;
+  const hasTimestamps = conversation.some((m) => m.createdAt);
+  if (!hasTimestamps) {
+    return conversation
+      .map((msg) => {
+        const label = msg.role === "user" ? "User" : "Assistant";
+        return `${label}:\n${msg.content}`;
+      })
+      .join("\n\n---\n\n");
+  }
+
+  const dayMap = new Map<string, { label: string; messages: ConversationMessage[] }>();
+
+  for (const msg of conversation) {
+    const ts = msg.createdAt ?? Date.now();
+    const d = new Date(ts);
+    const key = `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+
+    if (!dayMap.has(key)) {
+      const label = new Intl.DateTimeFormat(undefined, {
+        weekday: "short",
+        month: "short",
+        day: "numeric",
+      }).format(d);
+      dayMap.set(key, { label, messages: [] });
+    }
+    dayMap.get(key)!.messages.push(msg);
+  }
+
+  return Array.from(dayMap.values())
+    .map((group) => {
+      const msgs = group.messages
+        .map((msg) => {
+          const role = msg.role === "user" ? "User" : "Assistant";
+          const time = msg.createdAt
+            ? new Date(msg.createdAt).toLocaleTimeString(undefined, {
+                hour: "numeric",
+                minute: "2-digit",
+              })
+            : "";
+          const prefix = time ? `${role} (${time})` : role;
+          return `${prefix}:\n${msg.content}`;
+        })
+        .join("\n\n---\n\n");
+      return `**${group.label}**\n\n${msgs}`;
     })
     .join("\n\n---\n\n");
 }
