@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/cloudflare";
 import { Hono } from "hono";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
@@ -117,4 +118,10 @@ app.notFound((c) => {
   );
 });
 
-export default app;
+export default Sentry.withSentry(
+  (env: Bindings) => ({
+    dsn: "https://a4db5264ff0594adbc1ee0d6c0fe926a@o4511067975712768.ingest.us.sentry.io/4511078437093376",
+    sendDefaultPii: true,
+  }),
+  app as unknown as ExportedHandler<Bindings>
+);

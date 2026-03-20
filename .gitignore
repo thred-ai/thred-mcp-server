@@ -6,3 +6,6 @@ dist/
 /.cursor/
 .wrangler/
 .dev.vars
+
+# Sentry Config File
+.sentryclirc
