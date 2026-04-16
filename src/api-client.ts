@@ -34,6 +34,12 @@ export interface CompanyConversationsResponse {
   customers: ConversationsResponse[];
 }
 
+export interface PaginatedRecentResponse {
+  data: ConversationsResponse[];
+  continueCursor: string;
+  isDone: boolean;
+}
+
 export class ThredApiClient {
   private baseUrl: string;
   private apiKey: string;
@@ -80,17 +86,38 @@ export class ThredApiClient {
     );
   }
 
+  async getRecentConversationsPage(
+    limit?: number,
+    platforms?: string[],
+    paginationCursor?: string,
+  ): Promise<PaginatedRecentResponse> {
+    const params = new URLSearchParams();
+    if (limit !== undefined) params.set("limit", String(limit));
+    if (platforms?.length) params.set("platforms", platforms.join(","));
+    if (paginationCursor) params.set("paginationCursor", paginationCursor);
+    const qs = params.toString();
+    return this.request<PaginatedRecentResponse>(
+      `/conversations/recent${qs ? `?${qs}` : ""}`
+    );
+  }
+
   async getRecentConversations(
     limit?: number,
     platforms?: string[],
   ): Promise<ConversationsResponse[]> {
-    const params = new URLSearchParams();
-    if (limit !== undefined) params.set("limit", String(limit));
-    if (platforms?.length) params.set("platforms", platforms.join(","));
-    const qs = params.toString();
-    return this.request<ConversationsResponse[]>(
-      `/conversations/recent${qs ? `?${qs}` : ""}`
-    );
+    const cap = limit ?? 5;
+    const allResults: ConversationsResponse[] = [];
+    let cursor: string | undefined;
+
+    while (true) {
+      const page = await this.getRecentConversationsPage(cap, platforms, cursor);
+      allResults.push(...page.data);
+
+      if (page.isDone || allResults.length >= cap) break;
+      cursor = page.continueCursor;
+    }
+
+    return allResults.slice(0, cap);
   }
 
   async healthCheck(): Promise<{ status: string }> {
