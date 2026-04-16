@@ -29,9 +29,25 @@ export function registerGetRecentCustomers(
     },
     async ({ platforms, limit }) => {
       try {
-        const results = await apiClient.getRecentConversations(limit, platforms);
+        const cap = limit ?? 3;
+        const allResults: import("../api-client.js").ConversationsResponse[] = [];
+        let cursor: string | undefined;
 
-        if (!results || results.length === 0) {
+        while (true) {
+          const page = await apiClient.getRecentConversationsPage(
+            cap,
+            platforms,
+            cursor
+          );
+          allResults.push(...page.data);
+
+          if (page.isDone || allResults.length >= cap) break;
+          cursor = page.continueCursor;
+        }
+
+        const results = allResults.slice(0, cap);
+
+        if (results.length === 0) {
           return {
             content: [
               {
