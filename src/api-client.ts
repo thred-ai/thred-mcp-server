@@ -34,8 +34,32 @@ export interface CompanyConversationsResponse {
   customers: ConversationsResponse[];
 }
 
+/** Lean shape from GET /conversations/recent (per customer, all completed convs). */
+export interface RecentCustomerConversation {
+  platform: string;
+  date: string;
+  summary?: string;
+  sources: {
+    id: string;
+    type: string;
+    metadata: unknown;
+    timestamp: number;
+  }[];
+  transcript: { turnNumber: number; query: string; response?: string }[];
+  insights: {
+    buyingSignals: { signal: string; priority: string }[];
+    mainConcerns: { signal: string; priority: string }[];
+    competitorsConsidered: { signal: string }[];
+  };
+}
+
+export interface RecentCustomerEntry {
+  customer: { name: string; company?: string };
+  conversations: RecentCustomerConversation[];
+}
+
 export interface PaginatedRecentResponse {
-  data: ConversationsResponse[];
+  data: RecentCustomerEntry[];
   continueCursor: string;
   isDone: boolean;
 }
@@ -104,9 +128,9 @@ export class ThredApiClient {
   async getRecentConversations(
     limit?: number,
     platforms?: string[],
-  ): Promise<ConversationsResponse[]> {
+  ): Promise<RecentCustomerEntry[]> {
     const cap = limit ?? 5;
-    const allResults: ConversationsResponse[] = [];
+    const allResults: RecentCustomerEntry[] = [];
     let cursor: string | undefined;
 
     while (true) {

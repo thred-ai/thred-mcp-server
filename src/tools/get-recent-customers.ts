@@ -1,7 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { ThredApiClient } from "../api-client.js";
-import { formatConversationEntry } from "../utils/formatters.js";
+import { ThredApiClient, type RecentCustomerEntry } from "../api-client.js";
+import { formatRecentCustomerEntry } from "../utils/formatters.js";
 
 export function registerGetRecentCustomers(
   server: McpServer,
@@ -9,7 +9,7 @@ export function registerGetRecentCustomers(
 ) {
   server.tool(
     "get_recent_customers",
-    "Retrieve recent customer conversations, optionally filtered by AI platforms. Results are formatted as a flat list of conversations sorted by most recent activity, each labeled with the platform and date.",
+    "Retrieve recent customers with all completed conversations each: name and company, firmographic sources (customer/enriched data), plaintext transcript (user queries and assistant responses, not markdown), and buying signals/concerns/competitors. Optionally filter by AI platform. Pagination: this tool automatically follows the API continuation cursor across multiple pages until it gathers up to the requested limit of customers or runs out of data; raise the limit parameter for more customers in one run, or invoke the tool again if the user needs additional batches beyond that.",
     {
       platforms: z
         .array(z.string())
@@ -30,7 +30,7 @@ export function registerGetRecentCustomers(
     async ({ platforms, limit }) => {
       try {
         const cap = limit ?? 3;
-        const allResults: import("../api-client.js").ConversationsResponse[] = [];
+        const allResults: RecentCustomerEntry[] = [];
         let cursor: string | undefined;
 
         while (true) {
@@ -58,24 +58,13 @@ export function registerGetRecentCustomers(
           };
         }
 
-        const allConvos = results.flatMap((r) =>
-          r.conversations.map((conv) => ({
-            conv,
-            customerName: r.customer.name,
-            company: r.customer.company,
-          }))
-        );
-
-        const sections = allConvos.map(({ conv, customerName, company }) => {
-          const name = company ? `${customerName} (${company})` : customerName;
-          return formatConversationEntry(conv, name);
-        });
+        const sections = results.map((entry) => formatRecentCustomerEntry(entry));
 
         return {
           content: [
             {
               type: "text" as const,
-              text: sections.join("\n\n---\n\n"),
+              text: sections.join("\n\n==========\n\n"),
             },
           ],
         };
