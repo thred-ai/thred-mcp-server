@@ -21,10 +21,10 @@ export function registerGetRecentCustomers(
         .number()
         .int()
         .min(1)
-        .max(200)
+        .max(50)
         .optional()
         .describe(
-          "Number of customers to return (default 3, max 200)."
+          "Number of customers to return (default 3, max 50)."
         ),
     },
     async ({ platforms, limit }) => {
@@ -41,7 +41,7 @@ export function registerGetRecentCustomers(
           );
           allResults.push(...page.data);
 
-          if (page.isDone || allResults.length >= cap) break;
+          if (page.isDone) break;
           cursor = page.continueCursor;
         }
 
