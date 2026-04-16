@@ -21,27 +21,27 @@ export function registerGetRecentCustomers(
         .number()
         .int()
         .min(1)
-        .max(50)
         .optional()
         .describe(
-          "Number of customers to return (default 3, max 50)."
+          "Number of customers to return (default 3)."
         ),
     },
     async ({ platforms, limit }) => {
       try {
-        const cap = limit ?? 3;
+        const PAGE_SIZE = 25;
+        const cap = limit;
         const allResults: RecentCustomerEntry[] = [];
         let cursor: string | undefined;
 
         while (true) {
           const page = await apiClient.getRecentConversationsPage(
-            cap,
+            PAGE_SIZE,
             platforms,
             cursor
           );
           allResults.push(...page.data);
 
-          if (page.isDone) break;
+          if (page.isDone || (cap && allResults.length >= cap)) break;
           cursor = page.continueCursor;
         }
 

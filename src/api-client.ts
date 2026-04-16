@@ -129,12 +129,13 @@ export class ThredApiClient {
     limit?: number,
     platforms?: string[],
   ): Promise<RecentCustomerEntry[]> {
+    const PAGE_SIZE = 10;
     const cap = limit ?? 5;
     const allResults: RecentCustomerEntry[] = [];
     let cursor: string | undefined;
 
     while (true) {
-      const page = await this.getRecentConversationsPage(cap, platforms, cursor);
+      const page = await this.getRecentConversationsPage(PAGE_SIZE, platforms, cursor);
       allResults.push(...page.data);
 
       if (page.isDone || allResults.length >= cap) break;
