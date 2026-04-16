@@ -21,10 +21,10 @@ export function registerGetRecentCustomers(
         .number()
         .int()
         .min(1)
-        .max(50)
+        .max(200)
         .optional()
         .describe(
-          "Number of customers to return (default 3, max 50)."
+          "Number of customers to return (default 3, max 200)."
         ),
     },
     async ({ platforms, limit }) => {
